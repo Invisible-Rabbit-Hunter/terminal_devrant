@@ -9,3 +9,8 @@ A devRant viewer in the terminal.
 
 ## How to build
 run the Makefile
+
+## Images
+![img1](https://github.com/Supernerd11/terminal_devrant/blob/Alpha/img1.png)
+![img2](https://github.com/Supernerd11/terminal_devrant/blob/Alpha/img2.png)
+
