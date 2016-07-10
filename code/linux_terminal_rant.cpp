@@ -87,12 +87,12 @@ void insertString(char *String, char *ToInsert, int Offset)
 }
 
 char *
-GetNodeText(GumboNode *Node, char *Document)
+GetNodeText(GumboNode *Node)
 {
     uint StartPosition = Node->v.element.start_pos.offset + Node->v.element.original_tag.length;
     uint EndPosition = Node->v.element.end_pos.offset;
     uint StringLength = EndPosition - StartPosition;
-    char *Result = Document + StartPosition;
+    char *Result = (char *)Node->v.element.original_tag.data + Node->v.element.original_tag.length;
     *(Result + StringLength) = '\0';
 
     decode_html_entities_utf8(Result, 0);
@@ -102,153 +102,203 @@ GetNodeText(GumboNode *Node, char *Document)
 }
 
 uint
-GatherRants(uint RantsCount, char *Rants[], char *Feed, uint PageIndex)
+LoadRant(CURL *curl, Rant *Rant)
 {
-    CURL *curl;
+    CURLcode res;
+
+    char *URL = Rant->URL;
+
+    struct string str;
+
+    init_string(&str);
+
+    curl_easy_setopt(curl, CURLOPT_URL, URL);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &str);
+    res = curl_easy_perform(curl);
+
+    GumboOutput *Output = gumbo_parse(str.pointer);
+
+    GumboNode *RantArr[1024] = {};
+    uint RantCount;
+
+    RantCount = SearchForClass(Output->root, "rantlist-title", 0, RantArr);
+
+    for(uint RantArrIndex = 0;
+        RantArrIndex < RantCount;
+        ++RantArrIndex)
+    {
+        GumboNode *RantNode = RantArr[RantArrIndex];
+
+        char *Links[] = ;
+
+        printf("%s\n", GetNodeText(RantNode));
+    };
+
+    // strcpy(Rants[RantsCount++].RantText, GetNodeText(RantList[RantIndex], str.pointer));
+
+    return 0;
+}
+
+uint
+GatherRants(CURL *curl, uint RantsCount, Rant Rants[], char *Feed, uint PageIndex)
+{
     CURLcode res;
 
     uint RantCount = 0;
 
-    curl = curl_easy_init();
-    if(curl) {
-        struct string str;
+    struct string str;
 
-        init_string(&str);
+    init_string(&str);
 
-        char URL[50];
+    char URL[50];
 
-        sprintf(URL, "https://www.devrant.io/feed/%s/%d", Feed, PageIndex);
+    sprintf(URL, "https://www.devrant.io/feed/%s/%d", Feed, PageIndex);
 
-        curl_easy_setopt(curl, CURLOPT_URL, URL);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &str);
-        res = curl_easy_perform(curl);
+    curl_easy_setopt(curl, CURLOPT_URL, URL);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &str);
+    res = curl_easy_perform(curl);
 
-        GumboOutput *Output = gumbo_parse(str.pointer);
+    GumboOutput *Output = gumbo_parse(str.pointer);
 
-        GumboNode *RantList[1024] = {};
-        RantCount += SearchForClass(Output->root, "rantlist-title-text", 0, RantList);
-        if(RantCount)
+    GumboNode *RantList[20] = {};
+    RantCount = SearchForClass(Output->root, "rantlist-title", 0, RantList);
+    if(RantCount)
+    {
+        for(uint RantIndex = 0;
+            RantIndex < RantCount;
+            ++RantIndex)
         {
-            for(uint RantIndex = 0;
-                RantIndex < RantCount;
-                ++RantIndex)
-            {
-                Rants[RantsCount++] = GetNodeText(RantList[RantIndex], str.pointer);
-            }
+            GumboNode *Rant = RantList[RantIndex];
+
+            sprintf(Rants[RantsCount].URL, "https://www.devrant.io%s", gumbo_get_attribute(&Rant->v.element.attributes, "href")->value);
         }
-
-        gumbo_destroy_output(&kGumboDefaultOptions, Output);
-        free(str.pointer);
-
-        /* always cleanup */
-        curl_easy_cleanup(curl);
     }
+
+    gumbo_destroy_output(&kGumboDefaultOptions, Output);
+    free(str.pointer);
 
     return RantCount;
 }
 
+void WordWrap(char *Text, uint width)
+{
+    int CharacterIndex = 0;
+    int LineCharacterIndex = 0;
+    int PrevSpaceIndex = 0;
+    for(char Character = *Text;
+        Character;
+        Character = *(Text + CharacterIndex))
+    {
+        if((LineCharacterIndex != 0) &&
+           ((LineCharacterIndex % width) == 0))
+        {
+            if(Character != '\n')
+            {
+                *(Text + PrevSpaceIndex) = '\n';
+            }
+        }
+
+        if(Character == ' ')
+        {
+            PrevSpaceIndex = CharacterIndex;
+        }
+
+        if(Character == '\n')
+        {
+            LineCharacterIndex = 0;;
+        }
+        else
+        {
+            ++LineCharacterIndex;
+        }
+
+        ++CharacterIndex;
+
+    }
+}
+
 int main(int argc, char *argv[])
 {
+    CURL *curl;
+
+    curl = curl_easy_init();
+
+    if(curl)
+    {
+
+        Rant Rants[40] = {};
+        uint RantCount = 0;
+
+        RantCount += GatherRants(curl, RantCount, Rants, (char *)"recent", 1);
+
+        LoadRant(curl, &Rants[0]);
+
 #if 0
-    char *Rants[] = {};
-    uint RantCount = 0;
+        WINDOW *RantWindow;
 
-    RantCount += GatherRants(RantCount, Rants, 1);
+        initscr();
+        raw();
+        keypad(stdscr, true);
+        noecho();
+        cbreak();
+        timeout(1);
 
-    for(uint RantIndex = 0;
-        RantIndex < RantCount;
-        ++RantIndex)
-    {
-        printf("------------------------------------------------\n");
-        printf("%s\n", Rants[RantIndex]);
-    }
-#else
-    char *Rants[1024];
-    uint RantCount = 0;
+        RantCount += GatherRants(curl, RantCount, Rants, (char *)"recent", 1);
 
-    WINDOW *RantWindow;
+        bool Running = true;
+        uint CurrentRantIndex = 0;
+        Rant CurrentRant = Rants[CurrentRantIndex];
 
-    initscr();
-    raw();
-    keypad(stdscr, true);
-    noecho();
-    cbreak();
-    timeout(1);
-
-    RantCount += GatherRants(RantCount, Rants, (char *)"recent", 1);
-
-    bool Running = true;
-    uint CurrentRant = 0;
-    while(Running)
-    {
-
-        int width, height;
-        getmaxyx(stdscr, height, width);
-
-        int Input = getch();
-        refresh();
-
-        switch(Input)
+        while(Running)
         {
-            case 27:
-            case 3:
-            case 0:
-            {
-                printf("(%d:%c)\n", Input, Input);
-                Running = false;
-            } break;
+            int width = 80, height = 24;
 
-            case 'n':
-            {
-                CurrentRant = ++CurrentRant % RantCount;
-            } break;
+            int Input = getch();
+            refresh();
 
-            case 'p':
+            switch(Input)
             {
-                CurrentRant = --CurrentRant % RantCount;
-            } break;
+                case 27:
+                case 3:
+                case 0:
+                {
+                    printf("(%d:%c)\n", Input, Input);
+                    Running = false;
+                } break;
+
+                case KEY_LEFT:
+                case 'n':
+                {
+                    CurrentRantIndex = MOD(--CurrentRantIndex, RantCount);
+                    CurrentRant = Rants[CurrentRantIndex];
+                } break;
+
+                case KEY_RIGHT:
+                case 'p':
+                {
+                    CurrentRantIndex = MOD(++CurrentRantIndex, RantCount);
+                    CurrentRant = Rants[CurrentRantIndex];
+                } break;
+            }
+
+            clear();
+
+            WordWrap(CurrentRant.Text, width);
+
+            printw("------------------------\n");
+            printw("%s\n", CurrentRant.Text);
+            printw("------------------------\n");
+
+            refresh();
+
         }
-
-        clear();
-
-        int CharacterIndex = 0;
-        int LineIndex = 0;
-        int PrevSpaceIndex = 0;
-        for(char Character = *Rants[CurrentRant];
-            Character;
-            Character = *(Rants[CurrentRant]) + (CharacterIndex++))
-        {
-            if(Character == ' ')
-            {
-                PrevSpaceIndex = CharacterIndex;
-            }
-
-            if(Character == '\n')
-            {
-                ++LineIndex;
-            }
-
-            if((CharacterIndex != 0) &&
-               ((CharacterIndex % width) == 0))
-            {
-                printw("%c", Character);
-            }
-        }
-        printw("\n");
-
-        printw("------------------------\n");
-        printw("%s\n", Rants[CurrentRant]);
-        printw("------------------------\n");
-
-        printw("WindowDim: %d, %d", width, height);
-
-        refresh();
-
-    }
-    endwin();
-
+        endwin();
 #endif
+        /* always cleanup */
+        curl_easy_cleanup(curl);
+    }
 
     return 0;
 }
