@@ -9,16 +9,28 @@ struct string
   size_t length;
 };
 
+struct Memory
+{
+    void *Memory;
+    size_t Size;
+};
+
+struct RantContent
+{
+    char *User;
+    char *Text;
+};
+
 struct Rant
 {
     char URL[50];
 
-    char Users[101][100];
+    struct RantContent Content;
 
-    char Text[5000];
-
-    char Comments[100][1000];
+    struct RantContent Comments[200];
     int CommentCount;
+
+    bool Loaded;
 };
 
 #endif
