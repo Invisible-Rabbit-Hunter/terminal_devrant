@@ -247,9 +247,10 @@ int main(int argc, char *argv[])
         keypad(stdscr, true);
         noecho();
         cbreak();
-        timeout(1);
+        // timeout(10);
+        curs_set(0);
 
-        RantCount += GatherRants(curl, RantCount, Rants, (char *)"top", 1);
+        RantCount += GatherRants(curl, RantCount, Rants, (char *)"recent", 1);
         // RantCount += GatherRants(curl, RantCount, Rants, (char *)"top", 2);
 
         bool Running = true;
@@ -262,11 +263,83 @@ int main(int argc, char *argv[])
 
         while(Running)
         {
+            int WidthSpacing = 2;
+            int HeightSpacing = 1;
             int width, height;
             getmaxyx(stdscr, height, width);
+            clear();
+
+            // WordWrap(CurrentRant->Content.Text, width);
+
+
+            char LineBuffer[1000][width];
+            int LineCount = 0;
+
+            sprintf(LineBuffer[LineCount++], "----%s----\n", CurrentRant->Content.User);
+
+            char *pch, *str;
+            str = strdup(CurrentRant->Content.Text);
+            wrap(str, width - (2*WidthSpacing));
+            pch = strtok(str,"\n");
+            while (pch != NULL)
+            {
+                sprintf(LineBuffer[LineCount++], "%s\n", pch);
+                pch = strtok (NULL, "\n");
+            }
+
+            // sprintf(LineBuffer[LineCount++], "%s\n", CurrentRant->Content.Text);
+            sprintf(LineBuffer[LineCount++], "------------------------\n");
+
+            for(int CommentIndex = 0;
+                CommentIndex < CurrentRant->CommentCount;
+                ++CommentIndex)
+            {
+                sprintf(LineBuffer[LineCount++], "----%s----\n", CurrentRant->Comments[CommentIndex].User);
+
+                str = strdup(CurrentRant->Comments[CommentIndex].Text);
+                wrap(str, width - (2*WidthSpacing));
+                pch = strtok(str,"\n");
+                while (pch != NULL)
+                {
+                    sprintf(LineBuffer[LineCount++], "%s\n",pch);
+                    pch = strtok (NULL, "\n");
+                }
+
+                // sprintf(LineBuffer[LineCount++], "%s\n", );
+
+                sprintf(LineBuffer[LineCount++], "------------------------\n");
+            }
+
+
+            for(int i = 0;
+                i < HeightSpacing;
+                ++i)
+            {
+                printw("\n");
+            }
+
+            for(int LineIndex = CurrentTopLine;
+                (LineIndex < LineCount) && (LineIndex < (height + CurrentTopLine));
+                ++LineIndex)
+            {
+                for(int i = 0;
+                    i < WidthSpacing;
+                    ++i)
+                {
+                    printw(" ");
+                }
+
+                printw("%s", LineBuffer[LineIndex]);
+            }
+
+            for(int i = 0;
+                i < HeightSpacing;
+                ++i)
+            {
+                printw("\n");
+            }
 
             int Input = getch();
-            refresh();
 
             switch(Input)
             {
@@ -307,65 +380,20 @@ int main(int argc, char *argv[])
 
                 case KEY_DOWN:
                 {
-                    if(CurrentTopLine < height)
+                    if((CurrentTopLine < height) && (CurrentTopLine < LineCount))
                     {
                         ++CurrentTopLine;
                     };
                 } break;
-            }
 
-            clear();
-
-            // WordWrap(CurrentRant->Content.Text, width);
-
-
-            char LineBuffer[1000][width];
-            int LineCount = 0;
-
-            sprintf(LineBuffer[LineCount++], "----%s----\n", CurrentRant->Content.User);
-
-            char *pch, *str;
-            str = strdup(CurrentRant->Content.Text);
-            wrap(str, width);
-            pch = strtok(str,"\n");
-            while (pch != NULL)
-            {
-                sprintf(LineBuffer[LineCount++], "%s\n", pch);
-                pch = strtok (NULL, "\n");
-            }
-
-            // sprintf(LineBuffer[LineCount++], "%s\n", CurrentRant->Content.Text);
-            sprintf(LineBuffer[LineCount++], "------------------------\n");
-
-            for(int CommentIndex = 0;
-                CommentIndex < CurrentRant->CommentCount;
-                ++CommentIndex)
-            {
-                sprintf(LineBuffer[LineCount++], "----%s----\n", CurrentRant->Comments[CommentIndex].User);
-
-                str = strdup(CurrentRant->Comments[CommentIndex].Text);
-                wrap(str, width);
-                pch = strtok(str,"\n");
-                while (pch != NULL)
+                default:
                 {
-                    sprintf(LineBuffer[LineCount++], "%s\n",pch);
-                    pch = strtok (NULL, "\n");
-                }
-
-                // sprintf(LineBuffer[LineCount++], "%s\n", );
-
-                sprintf(LineBuffer[LineCount++], "------------------------\n");
-            }
-
-            for(int LineIndex = CurrentTopLine;
-                (LineIndex < LineCount) && (LineIndex < (height + CurrentTopLine));
-                ++LineIndex)
-            {
-                printw(" %s", LineBuffer[LineIndex]);
+                    printf("\n...%d...\n", Input);
+                    printw("\n...%d...\n", Input);
+                } break;
             }
 
             refresh();
-
         }
         endwin();
 
