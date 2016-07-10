@@ -153,7 +153,6 @@ LoadRant(CURL *curl, Rant *Rant)
     };
 
     Rant->Loaded = true;
-    // strcpy(Rants[RantsCount++].RantText, GetNodeText(RantList[RantIndex], str.pointer));
 }
 
 uint
@@ -203,43 +202,6 @@ GatherRants(CURL *curl, uint RantsCount, Rant Rants[], char Feed[], uint PageInd
     return RantCount;
 }
 
-// void WordWrap(char *Text, uint width)
-// {
-//     int CharacterIndex = 0;
-//     int LineCharacterIndex = 0;
-//     int PrevSpaceIndex = 0;
-//     for(char Character = *Text;
-//         Character;
-//         Character = *(Text + CharacterIndex))
-//     {
-//         if((LineCharacterIndex != 0) &&
-//            ((LineCharacterIndex % width) == 0))
-//         {
-//             if(Character != '\n')
-//             {
-//                 *(Text + PrevSpaceIndex) = '\n';
-//             }
-//         }
-//
-//         if(Character == ' ')
-//         {
-//             PrevSpaceIndex = CharacterIndex;
-//         }
-//
-//         if(Character == '\n')
-//         {
-//             LineCharacterIndex = 0;;
-//         }
-//         else
-//         {
-//             ++LineCharacterIndex;
-//         }
-//
-//         ++CharacterIndex;
-//
-//     }
-// }
-
 // wrap: take a long input line and wrap it into multiple lines
 void wrap(char s[], const int wrapline)
 {
@@ -265,7 +227,6 @@ void wrap(char s[], const int wrapline)
     } // end main loop
 }
 
-#if 1
 int main(int argc, char *argv[])
 {
     CURL *curl;
@@ -296,18 +257,6 @@ int main(int argc, char *argv[])
         uint CurrentRantIndex = 0;
         Rant *CurrentRant = Rants + CurrentRantIndex;
         LoadRant(curl, CurrentRant);
-        //
-        // printf("%s\n", CurrentRant->Content.Text);
-        //
-        // for(int CommentIndex = 0;
-        //     CommentIndex < CurrentRant->CommentCount;
-        //     ++CommentIndex)
-        // {
-        //     printf("%s\n", CurrentRant->Comments[CommentIndex].Text);
-        // }
-        //
-        // return 0;
-        //
 
         int CurrentTopLine = 0;
 
@@ -428,30 +377,3 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-
-#else
-int main(int argc, char *argv[])
-{
-    CURL *curl;
-
-    curl = curl_easy_init();
-
-    if(curl)
-    {
-
-        void *RantMemory = malloc(sizeof(Rant)*40);
-
-        Rant *Rants = (Rant *)RantMemory;
-        uint RantCount = 0;
-
-        RantCount = GatherRants(curl, RantCount, Rants, (char *)"recent", 1);
-
-        LoadRant(curl, Rants + 0);
-
-        wrap(Rants->Content.Text, 10);
-
-        printf("%s", Rants->Content.Text);
-    }
-}
-
-#endif
