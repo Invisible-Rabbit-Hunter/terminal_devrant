@@ -1,0 +1,5 @@
+{
+    "cwd": "{PROJECT_PATH}",
+    "cmd": "bash code/build.sh",
+    "errorMatch": "(?<file>[\\/0-9a-zA-Z\\._]+):(?<line>\\d+):(?<col>\\d+):\\s+(?<message>.+)"
+}
