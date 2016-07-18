@@ -10,22 +10,8 @@
 
 #include "linux_terminal_rant.h"
 
-struct string
-{
-    char *Text;
-    size_t Length;
-};
-
-struct string *
-InitString()
-{
-    struct string *Result = calloc(1, sizeof(char));
-
-    return Result;
-}
-
 size_t
-write_cb(void *ptr, size_t size, size_t nmemb, struct string *String)
+write_cb(void *ptr, size_t size, size_t nmemb, string *String)
 {
     String->Text = realloc(String->Text, String->Length + (size*nmemb));
     strncpy(String->Text + String->Length, ptr, size*nmemb);
@@ -56,45 +42,51 @@ json_get_array_value(json_value *Object, int32_t Index)
     return Object->u.array.values[Index];
 }
 
-json_value *
-GetRants(CURL *curl, char *API, char *Feed, int32_t Count)
+int32_t
+GetRants(CURL *curl, char *API, char *Feed, int32_t Count, int32_t skip, struct rant *Rants)
 {
     char PATH[50] = {};
     char URL[100] = {};
 
-    sprintf(PATH, "devrant/rants?app=3&sort=%s&limit=%d", Feed, Count);
+    sprintf(PATH, "devrant/rants?app=3&sort=%s&limit=%d&skip=%d", Feed, Count, skip);
     sprintf(URL, "%s/%s", API, PATH);
 
-    struct string *Result = InitString();
+    string Result = InitString();
 
     curl_easy_setopt(curl, CURLOPT_URL, URL);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, Result);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &Result);
 
     curl_easy_perform(curl);
 
-    json_value *Rants = json_parse(Result->Text, Result->Length);
+    json_value *JsonResult = json_parse(Result.Text, Result.Length);
 
-    free(Result->Text);
+    json_value *RantArray = json_get_object_value(JsonResult, "rants");
 
-    return Rants;
+    if(Rants)
+    {
+        free(Rants);
+    }
+
+    Rants = calloc(Count, sizeof(struct rant));
+
+    for(int32_t RantIndex = 0;
+        RantIndex < Count;
+        ++RantIndex)
+    {
+        Rants[RantIndex].Text = InitString();
+        Append(&Rants[RantIndex].Text, json_get_array_value(RantArray, Count)->u.string.ptr, json_get_array_value(RantArray, Count)->u.string.length);
+    }
+
+    free(Result.Text);
+
+    json_value_free(JsonResult);
+    return json_get_object_value(JsonResult, "success")->u.boolean;
 }
 
 void
-PrintRants(json_value *Rants)
+PrintRants(struct rant *Rants)
 {
-    Rants = json_get_object_value(Rants, "rants");
-
-    int ArrayIndex;
-    for(ArrayIndex = 0;
-        ArrayIndex < Rants->u.array.length;
-        ++ArrayIndex)
-    {
-        json_value *CurrentRant = json_get_array_value(Rants, ArrayIndex);
-
-        printf("%s\n\n-\n\n", json_get_object_value(CurrentRant, "text")->u.string.ptr);
-    }
-
 }
 
 int main(int argc, char **argv)
@@ -102,22 +94,15 @@ int main(int argc, char **argv)
     char API[] = "https://www.devrant.io/api";
     CURL *curl = curl_easy_init();
 
-    clock_t start = clock(), diff;
+    struct rant *Rants;
+    int32_t Success = GetRants(curl, API, "recent", 20, 0, Rants);
 
-    json_value *Rants = GetRants(curl, API, "recent", 20);
+    if(Success)
+    {
+        PrintRants(Rants);
+    }
 
-    diff = clock() - start;
-
-    float msec = (float)(diff * 1000000 / CLOCKS_PER_SEC)/1000000.0f;
-    printf("Time taken: %f seconds\n", msec);
-
-    //
-    // if(json_get_object_value(Rants, "success"))
-    // {
-    //     PrintRants(Rants);
-    // }
-    //
-    json_value_free(Rants);
+    free(Rants);
 
     curl_easy_cleanup(curl);
     return 0;
