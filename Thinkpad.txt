@@ -1,0 +1,12 @@
+Main spec
+##############################
+
+rant <action> [options]
+
+##############################
+Actions
+------------------------------
+show [--jump=<number>],
+clear,
+refresh [-a/--algo, -r/--recent, -t/--top],
+fetch [-a/--algo, -r/--recent, -t/--top],
